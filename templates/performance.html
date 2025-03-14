@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Performance Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .dashboard-container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .chart {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .chart img {
+            max-width: 100%;
+            height: auto;
+        }
+        .back-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 10px 0;
+        }
+        .summary-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .filter-controls {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .filter-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>OCR Performance Dashboard</h1>
+    
+    <div class="dashboard-container">
+        {% if performance_data %}
+            <h2>Performance Summary</h2>
+            
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-label">Total Tests</div>
+                    <div class="summary-value">{{ performance_data|length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Unique Models Tested</div>
+                    <div class="summary-value">{{ performance_data|map(attribute='model')|unique|list|length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">PDF Files Processed</div>
+                    <div class="summary-value">{{ performance_data|selectattr('file_type', 'equalto', 'pdf')|list|length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Image Files Processed</div>
+                    <div class="summary-value">{{ performance_data|selectattr('file_type', 'equalto', 'image')|list|length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Avg. Processing Time</div>
+                    <div class="summary-value">{{ "%.2f"|format(performance_data|map(attribute='processing_time_sec')|list|sum / performance_data|length) }}s</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Avg. Characters/Second</div>
+                    <div class="summary-value">
+                        {% set entries_with_chars_per_second = performance_data|selectattr('chars_per_second', 'defined')|list %}
+                        {% if entries_with_chars_per_second %}
+                            {{ "%.2f"|format(entries_with_chars_per_second|map(attribute='chars_per_second')|list|sum / entries_with_chars_per_second|length) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <h2>Performance Charts</h2>
+            
+            {% if charts %}
+                <div class="charts-container">
+                    {% for chart in charts %}
+                        <div class="chart">
+                            <img src="{{ url_for('static', filename=chart) }}" alt="Performance Chart">
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data">
+                    <p>No charts available. Please process more files to generate performance charts.</p>
+                </div>
+            {% endif %}
+            
+            <h2>Detailed Performance Data</h2>
+            
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label class="filter-label" for="model-filter">Filter by Model:</label>
+                    <select id="model-filter" onchange="filterTable()">
+                        <option value="all">All Models</option>
+                        <option value="chatgpt">ChatGPT 4o</option>
+                        <option value="gemini">Gemini 2.0 Flash</option>
+                        <option value="mistral">Mistral AI</option>
+                        <option value="qwen">Qwen 2.5 VL Max</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="file-type-filter">Filter by File Type:</label>
+                    <select id="file-type-filter" onchange="filterTable()">
+                        <option value="all">All Types</option>
+                        <option value="pdf">PDF</option>
+                        <option value="image">Image</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="sort-by">Sort by:</label>
+                    <select id="sort-by" onchange="sortTable()">
+                        <option value="timestamp">Date (Newest First)</option>
+                        <option value="processing_time_sec">Processing Time</option>
+                        <option value="chars_per_second">Speed (Chars/Sec)</option>
+                        <option value="character_count">Character Count</option>
+                    </select>
+                </div>
+            </div>
+            
+            <table id="performance-table">
+                <thead>
+                    <tr>
+                        <th>Date/Time</th>
+                        <th>Model</th>
+                        <th>File Type</th>
+                        <th>File Size (KB)</th>
+                        <th>Processing Time (s)</th>
+                        <th>Character Count</th>
+                        <th>Word Count</th>
+                        <th>Line Count</th>
+                        <th>Paragraph Count</th>
+                        <th>Chars/Second</th>
+                        <th>Words/Second</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in performance_data|sort(attribute='timestamp', reverse=true) %}
+                        <tr data-model="{{ entry.model }}" data-file-type="{{ entry.file_type }}" data-timestamp="{{ entry.timestamp }}" 
+                            data-processing-time="{{ entry.processing_time_sec }}" 
+                            data-chars-per-second="{{ entry.chars_per_second|default(0) }}" 
+                            data-character-count="{{ entry.character_count }}">
+                            <td>{{ entry.timestamp|replace('T', ' ')|truncate(19, true, '') }}</td>
+                            <td>
+                                {% if entry.model == 'chatgpt' %}
+                                    ChatGPT 4o
+                                {% elif entry.model == 'gemini' %}
+                                    Gemini 2.0 Flash
+                                {% elif entry.model == 'mistral' %}
+                                    Mistral AI
+                                {% elif entry.model == 'qwen' %}
+                                    Qwen 2.5 VL Max
+                                {% else %}
+                                    {{ entry.model }}
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.file_type|upper }}</td>
+                            <td>{{ "%.2f"|format(entry.file_size_kb) }}</td>
+                            <td>{{ "%.2f"|format(entry.processing_time_sec) }}</td>
+                            <td>{{ entry.character_count }}</td>
+                            <td>{{ entry.word_count }}</td>
+                            <td>{{ entry.line_count|default('N/A') }}</td>
+                            <td>{{ entry.paragraph_count|default('N/A') }}</td>
+                            <td>
+                                {% if entry.chars_per_second is defined %}
+                                    {{ "%.2f"|format(entry.chars_per_second) }}
+                                {% else %}
+                                    {{ "%.2f"|format(entry.character_count / entry.processing_time_sec) }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if entry.words_per_second is defined %}
+                                    {{ "%.2f"|format(entry.words_per_second) }}
+                                {% else %}
+                                    {{ "%.2f"|format(entry.word_count / entry.processing_time_sec) }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <script>
+                function filterTable() {
+                    const modelFilter = document.getElementById('model-filter').value;
+                    const fileTypeFilter = document.getElementById('file-type-filter').value;
+                    const rows = document.querySelectorAll('#performance-table tbody tr');
+                    
+                    rows.forEach(row => {
+                        const model = row.getAttribute('data-model');
+                        const fileType = row.getAttribute('data-file-type');
+                        
+                        const modelMatch = modelFilter === 'all' || model === modelFilter;
+                        const fileTypeMatch = fileTypeFilter === 'all' || fileType === fileTypeFilter;
+                        
+                        if (modelMatch && fileTypeMatch) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+                
+                function sortTable() {
+                    const sortBy = document.getElementById('sort-by').value;
+                    const tbody = document.querySelector('#performance-table tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    
+                    rows.sort((a, b) => {
+                        let aValue, bValue;
+                        
+                        if (sortBy === 'timestamp') {
+                            aValue = a.getAttribute('data-timestamp');
+                            bValue = b.getAttribute('data-timestamp');
+                            return bValue.localeCompare(aValue); // Newest first
+                        } else {
+                            aValue = parseFloat(a.getAttribute(`data-${sortBy.replace('_', '-')}`));
+                            bValue = parseFloat(b.getAttribute(`data-${sortBy.replace('_', '-')}`));
+                            return bValue - aValue; // Highest first
+                        }
+                    });
+                    
+                    // Remove all rows
+                    while (tbody.firstChild) {
+                        tbody.removeChild(tbody.firstChild);
+                    }
+                    
+                    // Add sorted rows
+                    rows.forEach(row => {
+                        tbody.appendChild(row);
+                    });
+                }
+            </script>
+        {% else %}
+            <div class="no-data">
+                <p>No performance data available yet. Process some files to see performance metrics.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <a href="/" class="back-button">Back to Upload</a>
+</body>
+</html> 

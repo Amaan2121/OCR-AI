@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Results - OCR AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background-color: #6c757d;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 1rem;
+        }
+        .ocr-text {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .metric-card {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+            border-bottom-color: transparent;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            margin-top: 20px;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">OCR Results</h1>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Extracted Text</h5>
+                <span class="badge bg-primary">{{ model }}</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>File:</strong> {{ filename }}
+                </div>
+                
+                {% if ocr_text and ocr_text.startswith('Error') %}
+                    <div class="error-message">
+                        {{ ocr_text }}
+                    </div>
+                    <div class="alert alert-warning">
+                        There was an error processing your file. Please try again or use a different model.
+                    </div>
+                {% else %}
+                    <div class="ocr-text">{{ ocr_text }}</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Performance Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="tabs">
+                    <div class="tab active" onclick="openMetricsTab('basicMetrics')">Basic Metrics</div>
+                    <div class="tab" onclick="openMetricsTab('textAnalysis')">Text Analysis</div>
+                    <div class="tab" onclick="openMetricsTab('speedMetrics')">Speed Metrics</div>
+                </div>
+                
+                <div id="basicMetrics" class="tab-content active">
+                    <div class="metrics-container">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ processing_time|round(2) }}</div>
+                            <div class="metric-label">Processing Time (s)</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ character_count }}</div>
+                            <div class="metric-label">Characters</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ word_count }}</div>
+                            <div class="metric-label">Words</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="textAnalysis" class="tab-content">
+                    <div class="metrics-container">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ line_count }}</div>
+                            <div class="metric-label">Lines</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ paragraph_count }}</div>
+                            <div class="metric-label">Paragraphs</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ text_density|round(2) }}</div>
+                            <div class="metric-label">Chars per Word</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="speedMetrics" class="tab-content">
+                    <div class="metrics-container">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ chars_per_second|round(2) }}</div>
+                            <div class="metric-label">Chars/Second</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ words_per_second|round(2) }}</div>
+                            <div class="metric-label">Words/Second</div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if charts %}
+                <div class="chart-container">
+                    <h5>Performance Charts</h5>
+                    <div class="row">
+                        {% for chart in charts %}
+                        <div class="col-md-6 mb-3">
+                            <img src="{{ url_for('static', filename=chart) }}" alt="Performance Chart" class="chart-img">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-primary">Process Another File</a>
+            <a href="/performance" class="btn btn-outline-secondary ms-2">View Performance Dashboard</a>
+        </div>
+    </div>
+    
+    <script>
+        function openMetricsTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            // Remove active class from all tabs
+            const tabs = document.getElementsByClassName('tab');
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            
+            // Show the selected tab content and mark the tab as active
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+        
+        // Clear any loading timers from the previous page
+        window.onload = function() {
+            if (window.opener && !window.opener.closed) {
+                const timer = window.opener.sessionStorage.getItem('ocr_timer');
+                if (timer) {
+                    clearInterval(timer);
+                    window.opener.sessionStorage.removeItem('ocr_timer');
+                }
+            }
+        };
+    </script>
+</body>
+</html> 

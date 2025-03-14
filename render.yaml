@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ocr-ai
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.8.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: QWEN_API_KEY
+        sync: false 

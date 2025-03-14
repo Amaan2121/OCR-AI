@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR AI - Extract Text from Images and PDFs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background-color: #6c757d;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 1rem;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+        .alert {
+            border-radius: 8px;
+        }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .loading-text {
+            color: white;
+            margin-top: 1rem;
+            font-size: 1.2rem;
+        }
+        .model-info {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="loading-text">Processing your file. This may take a few moments...</div>
+        <div class="loading-text" id="processingTime">Time elapsed: 0 seconds</div>
+    </div>
+
+    <div class="container">
+        <h1 class="text-center mb-4">OCR AI - Extract Text from Images and PDFs</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Upload File</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-warning">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select PDF or Image File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.gif" required>
+                        <div class="form-text">Supported formats: PDF, PNG, JPG, JPEG, GIF (Max 16MB)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="model" class="form-label">Select AI Model</label>
+                        <select class="form-select" id="model" name="model" required>
+                            <option value="chatgpt">ChatGPT 4o</option>
+                            <option value="gemini">Gemini 2.0 Flash</option>
+                            <option value="mistral">Mistral AI</option>
+                            <option value="qwen">Qwen 2.5 VL Max</option>
+                        </select>
+                        <div class="model-info" id="modelInfo">
+                            <strong>ChatGPT 4o:</strong> OpenAI's multimodal model with excellent OCR capabilities.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Extract Text</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <a href="/performance" class="btn btn-outline-secondary">View Performance Dashboard</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show model information based on selection
+        document.getElementById('model').addEventListener('change', function() {
+            const modelInfo = document.getElementById('modelInfo');
+            const selectedModel = this.value;
+            
+            switch(selectedModel) {
+                case 'chatgpt':
+                    modelInfo.innerHTML = '<strong>ChatGPT 4o:</strong> OpenAI\'s multimodal model with excellent OCR capabilities.';
+                    break;
+                case 'gemini':
+                    modelInfo.innerHTML = '<strong>Gemini 2.0 Flash:</strong> Google\'s fast multimodal model for efficient OCR processing.';
+                    break;
+                case 'mistral':
+                    modelInfo.innerHTML = '<strong>Mistral AI:</strong> Note: Limited OCR capabilities. Best for text-based tasks.';
+                    break;
+                case 'qwen':
+                    modelInfo.innerHTML = '<strong>Qwen 2.5 VL Max:</strong> Alibaba\'s powerful vision-language model with strong OCR capabilities.';
+                    break;
+            }
+        });
+        
+        // Show loading overlay on form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            // Show loading overlay
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            // Start timer
+            let seconds = 0;
+            const timerElement = document.getElementById('processingTime');
+            const timer = setInterval(function() {
+                seconds++;
+                timerElement.textContent = `Time elapsed: ${seconds} seconds`;
+                
+                // Add warning if taking too long
+                if (seconds > 30) {
+                    timerElement.innerHTML = `Time elapsed: ${seconds} seconds<br><small>Processing is taking longer than expected. Please be patient...</small>`;
+                }
+                
+                // Add timeout warning
+                if (seconds > 120) {
+                    timerElement.innerHTML = `Time elapsed: ${seconds} seconds<br><small>If this continues for too long, you may want to try a different model or a smaller file.</small>`;
+                }
+            }, 1000);
+            
+            // Store timer in sessionStorage to clear it if page is reloaded
+            sessionStorage.setItem('ocr_timer', timer);
+        });
+        
+        // Check if coming back from a failed submission
+        window.onload = function() {
+            const timer = sessionStorage.getItem('ocr_timer');
+            if (timer) {
+                clearInterval(timer);
+                sessionStorage.removeItem('ocr_timer');
+            }
+        };
+    </script>
+</body>
+</html> 
